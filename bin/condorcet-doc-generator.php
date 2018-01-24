@@ -1,7 +1,5 @@
 <?php
 
-var_dump($argv);
-
 $start_time = microtime(true);
 
 $pathDirectory = $argv[1];
