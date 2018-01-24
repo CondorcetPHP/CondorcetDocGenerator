@@ -1,0 +1,27 @@
+{
+    "name": "CondorcetPHP/condorcet-docGenerator",
+    "license": "MIT",
+    "type": "library",
+    "homepage": "https://github.com/CondorcetPHP/docGenerator",
+    "description": "Temporary documentation generator tools created (only) for CondorcetPHP",
+    "authors": [
+        {
+            "name": "Julien Boudry",
+            "email": "julien.boudry@gmail.com",
+            "homepage": "http://www.julien-boudry.net",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": ">=7.1.0"
+    },
+    "require-dev": {
+        "mustangostang/spyc": "^0.6.2"
+    },
+    "suggest": {
+        "julien-boudry/Condorcet": "condorcet-docGenerator was created specialy and only for CondorcetPHP"
+    },
+    "autoload": {
+        "psr-4": { "CondorcetPHP\\": "lib/" }
+    }
+}
