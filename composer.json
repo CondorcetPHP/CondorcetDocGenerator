@@ -21,5 +21,5 @@
     "suggest": {
         "julien-boudry/Condorcet": "condorcet-docGenerator was created specialy and only for CondorcetPHP"
     },
-    "bin": ["bin/condorcet-doc-generator.php"]
+    "bin": ["bin/condorcet-doc"]
 }

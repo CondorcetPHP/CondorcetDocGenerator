@@ -1,6 +1,4 @@
 <?php
-// Composer Autoload
-require_once '../vendor/autoload.php';
 
 $start_time = microtime(true);
 
