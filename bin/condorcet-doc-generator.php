@@ -1,10 +1,12 @@
 <?php
 
+var_dump($argv);
+
 $start_time = microtime(true);
 
-$pathDirectory = __DIR__;
+$pathDirectory = $argv[1];
 
-$doc = Spyc::YAMLLoad('doc.yaml');
+$doc = Spyc::YAMLLoad($pathDirectory.'doc.yaml');
 
 foreach ($doc as $entry) :
   if (!isset($entry['publish']) || $entry['publish'] !== true) :
