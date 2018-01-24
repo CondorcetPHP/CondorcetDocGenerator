@@ -13,9 +13,7 @@
         }
     ],
     "require": {
-        "php": ">=7.1.0"
-    },
-    "require-dev": {
+        "php": ">=7.1.0",
         "mustangostang/spyc": "^0.6.2"
     },
     "suggest": {
