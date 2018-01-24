@@ -1,9 +1,10 @@
 <?php
+// Composer Autoload
+require_once '../vendor/autoload.php';
 
 $start_time = microtime(true);
 
-// Composer Autoload
-require_once '../../vendor/autoload.php';
+$pathDirectory = __DIR__;
 
 $doc = Spyc::YAMLLoad('doc.yaml');
 
@@ -20,7 +21,7 @@ foreach ($doc as $entry) :
   	$method = $entry ;
     $method['class'] = $class;
 
-  	$path = "../" . str_replace("\\", "_", $method['class']) . " Class/";
+  	$path = $pathDirectory . str_replace("\\", "_", $method['class']) . " Class/";
 
     if (!is_dir($path)) :
         mkdir($path);

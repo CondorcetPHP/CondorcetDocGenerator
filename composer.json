@@ -21,7 +21,5 @@
     "suggest": {
         "julien-boudry/Condorcet": "condorcet-docGenerator was created specialy and only for CondorcetPHP"
     },
-    "autoload": {
-        "psr-4": { "CondorcetPHP\\": "lib/" }
-    }
+    "bin": ["bin/condorcet-doc-generator.php"]
 }
