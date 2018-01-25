@@ -4,6 +4,10 @@ $start_time = microtime(true);
 
 $pathDirectory = $argv[1];
 
+if (substr($pathDirectory, -1) !== DIRECTORY_SEPARATOR) :
+    $pathDirectory .= DIRECTORY_SEPARATOR;
+endif;
+
 $doc = Spyc::YAMLLoad($pathDirectory.'doc.yaml');
 
 foreach ($doc as $entry) :
