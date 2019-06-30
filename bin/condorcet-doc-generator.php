@@ -59,10 +59,10 @@ function computeCleverSpec ($static, $public, $class, $method, $param) {
 	$i = 0;
 
 if (is_array($param)) :	foreach ($param as $key => $value) :
-		
 		$str .= ($value['required'] === false && !$option) ? " [" : "";
 		$str .= ($i > 0) ? "," : "";
 		$str .= " ";
+        $str .= (isset($value['nullable']) && $value['nullable'] && $value['type'] !== "mixed") ? "?" : "";
 		$str .= $value['type'];
 		$str .= " ";
 		$str .= $key;
