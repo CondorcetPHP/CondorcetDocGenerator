@@ -45,9 +45,9 @@ function makeFilename ($method) {
 
 function speakBool ($c)
 {
-  if ($c === true) : return 'true'; endif;
-  if ($c === false) : return 'false'; endif;
-  if ($c === null) : return 'null'; endif;
+  if ($c === true || $c === 'true') : return 'true'; endif;
+  if ($c === false || $c === 'false') : return 'false'; endif;
+  if ($c === null || $c === 'null') : return 'null'; endif;
 
   return $c;
 }
