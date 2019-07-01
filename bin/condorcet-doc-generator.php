@@ -52,7 +52,7 @@ function speakBool ($c)
   return $c;
 }
 
-function computeCleverSpec ($static, $public, $class, $method, $param) {
+function computeCleverSpec ($static, $public, $class, $method, $param, $return_type) {
 
 	$option = false;
 	$str = '(';
@@ -81,7 +81,7 @@ endif;
 
 
 	return "```php
-".$public." ".(($static)?"static ":'$').$class.(($static)?"::":' -> ').$method." ".$str."
+".$public." ".(($static)?"static ":'$').$class.(($static)?"::":' -> ').$method." ".$str. ( ($return_type !== null) ? " : ".$return_type : "" )."
 ```";
 }
 
@@ -110,7 +110,7 @@ $entry['class']."::".$entry['name'].     "
 
 ### Description    
 
-".computeCleverSpec($entry['static'], $entry['visibility'], $entry['class'],$entry['name'],(isset($entry['input'])) ? $entry['input'] : null)."
+".computeCleverSpec($entry['static'], $entry['visibility'], $entry['class'],$entry['name'],(isset($entry['input'])) ? $entry['input'] : null, (isset($entry['return_type'])) ? $entry['return_type'] : null)."
 
 ".$entry['description']."    
 ";
