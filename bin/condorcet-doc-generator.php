@@ -12,6 +12,7 @@ if (substr($pathDirectory, -1) !== DIRECTORY_SEPARATOR) :
 endif;
 
 $doc = Yaml::parseFile($pathDirectory.'doc.yaml');
+$index  = [];
 
 foreach ($doc as $entry) :
   if (!isset($entry['publish']) || $entry['publish'] !== true) :
@@ -33,8 +34,14 @@ foreach ($doc as $entry) :
     endif;
 
     file_put_contents($path.makeFilename($method), createMarkdownContent($method));
+
+    $index[$method['class']][$method['name']] = $method;
   endforeach;
 endforeach;
+
+uksort($index,'strnatcmp');
+makeIndex($index);
+
 
 echo 'YAH ! <br>' . (microtime(true) - $start_time) .'s';
 
@@ -55,40 +62,6 @@ function speakBool ($c) : string
   return $c;
 }
 
-function computeCleverSpec (bool $static, string $public, string $class, string $method, ?array $param, ?string $return_type) : string
-{
-
-    $option = false;
-    $str = '(';
-    $i = 0;
-
-if (is_array($param)) :
-    foreach ($param as $key => $value) :
-        $str .= ($value['required'] === false && !$option) ? " [" : "";
-        $str .= ($i > 0) ? "," : "";
-        $str .= " ";
-        $str .= (isset($value['nullable']) && $value['nullable'] && $value['type'] !== "mixed") ? "?" : "";
-        $str .= $value['type'];
-        $str .= " ";
-        $str .= $key;
-        $str .= (isset($value['default'])) ? " = ".speakBool($value['default']) : "";
-
-        ($value['required'] === false && !$option) ? $option = true : null;
-        $i++;
-    endforeach;
-endif;
-
-    if ($option) :
-        $str .= "]";
-    endif;
-
-    $str .= " )";
-
-
-    return "```php
-".$public." ".(($static)?"static ":'$').$class.(($static)?"::":' -> ').$method." ".$str. ( ($return_type !== null) ? " : ".$return_type : "" )."
-```";
-}
 
 function cleverRelated (string $name) : string
 {
@@ -114,7 +87,7 @@ $entry['class']."::".$entry['name'].     "
 
 ### Description    
 
-".computeCleverSpec($entry['static'], $entry['visibility'], $entry['class'],$entry['name'],(isset($entry['input'])) ? $entry['input'] : null, (isset($entry['return_type'])) ? $entry['return_type'] : null)."
+".makeRepresentation($entry)."
 
 ".$entry['description']."    ";
 
@@ -182,4 +155,94 @@ endif;
 
     return $md;
 
+}
+
+function makeRepresentation (array $entry, bool $link = false) : string
+{
+    if (!$link) :
+        return computeRepresentationAsPHP($entry['static'], $entry['visibility'], $entry['class'],$entry['name'],(isset($entry['input'])) ? $entry['input'] : null, (isset($entry['return_type'])) ? $entry['return_type'] : null);
+    else :
+        return computeRepresentationAsForIndex($entry['static'], $entry['visibility'], $entry['class'],$entry['name'],(isset($entry['input'])) ? $entry['input'] : null, (isset($entry['return_type'])) ? $entry['return_type'] : null);
+    endif;
+}
+
+function computeRepresentationAsPHP (bool $static, string $public, string $class, string $method, ?array $param, ?string $return_type) : string
+{
+
+    $option = false;
+    $str = '(';
+    $i = 0;
+
+if (is_array($param)) :
+    foreach ($param as $key => $value) :
+        $str .= ($value['required'] === false && !$option) ? " [" : "";
+        $str .= ($i > 0) ? "," : "";
+        $str .= " ";
+        $str .= (isset($value['nullable']) && $value['nullable'] && $value['type'] !== "mixed") ? "?" : "";
+        $str .= $value['type'];
+        $str .= " ";
+        $str .= $key;
+        $str .= (isset($value['default'])) ? " = ".speakBool($value['default']) : "";
+
+        ($value['required'] === false && !$option) ? $option = true : null;
+        $i++;
+    endforeach;
+endif;
+
+    if ($option) :
+        $str .= "]";
+    endif;
+
+    $str .= " )";
+
+    return "```php
+".$public." ".(($static)?"static ":'$').$class.(($static)?"::":' -> ').$method." ".$str. ( ($return_type !== null) ? " : ".$return_type : "" )."
+```";
+}
+
+function computeRepresentationAsForIndex (bool $static, string $public, string $class, string $method, ?array $param, ?string $return_type) : string
+{
+    return  $public." ".
+            (($static)?"static ":'').
+            $class.
+            (($static)?"::":'->').
+            $method.
+            "()";
+}
+
+
+function makeIndex (array $index) : void
+{
+    global $pathDirectory;
+
+    $file_content = "# Public Methods Index _(Not yet exhaustive, not yet....)*_\n";
+    $file_content .=  "_Not including technical public methods which ones are used for very advanced use between components (typically if you extend Coondorcet or build your own modules)._    \n\n";
+
+    $file_content .=  "_*: I try to update and complete the documentation. See also [the manual](https://github.com/julien-boudry/Condorcet/wiki), [the tests](../Tests) also produce many examples. And create issues for questions or fixing documentation!_    \n\n";
+
+    foreach ($index as $class => &$methods) :
+
+        usort($methods,function (array $a, array $b) {
+            if ($a['static'] === $b['static']) :
+                return strnatcmp($a['name'],$b['name']);
+            elseif ($a['static'] && !$b['static']) :
+                return -1;
+            else :
+                return 1;
+            endif;
+        });
+
+        $file_content .= '## CondorcetPHP\Condorcet\\'.$class." Class  \n\n";
+
+        foreach ($methods as $oneMethod) :
+            $url = $oneMethod['class'].' Class/'.$oneMethod['visibility'].' '.(($oneMethod['static'])?'static ':'') . $oneMethod['class']."--". $oneMethod['name'] . '.md' ;
+            $url = str_replace(' ', '%20', $url);
+
+            $file_content .= "* [".makeRepresentation($oneMethod, true)."](".$url.")  \n";
+        endforeach;
+
+    endforeach;
+
+
+    file_put_contents($pathDirectory."\\README.md", $file_content);
 }
