@@ -23,29 +23,30 @@ foreach ($doc as $entry) :
   endif;
 
   foreach ($entry['class'] as $class) :
-  	$method = $entry ;
+    $method = $entry ;
     $method['class'] = $class;
 
-  	$path = $pathDirectory . str_replace("\\", "_", $method['class']) . " Class/";
+    $path = $pathDirectory . str_replace("\\", "_", $method['class']) . " Class/";
 
     if (!is_dir($path)) :
         mkdir($path);
     endif;
 
-  	file_put_contents($path.makeFilename($method), createMarkdownContent($method));
+    file_put_contents($path.makeFilename($method), createMarkdownContent($method));
   endforeach;
 endforeach;
 
 echo 'YAH ! <br>' . (microtime(true) - $start_time) .'s';
 
-function makeFilename ($method) {
+function makeFilename (array $method) : string
+{
   return  $method['visibility'].
           (($method['static']) ? " static " : " "). 
           str_replace("\\", "_", $method['class'])."--".$method['name'].
           ".md";
 }
 
-function speakBool ($c)
+function speakBool ($c) : string
 {
   if ($c === true || $c === 'true') : return 'true'; endif;
   if ($c === false || $c === 'false') : return 'false'; endif;
@@ -54,40 +55,42 @@ function speakBool ($c)
   return $c;
 }
 
-function computeCleverSpec ($static, $public, $class, $method, $param, $return_type) {
+function computeCleverSpec (bool $static, string $public, string $class, string $method, ?array $param, ?string $return_type) : string
+{
 
-	$option = false;
-	$str = '(';
-	$i = 0;
+    $option = false;
+    $str = '(';
+    $i = 0;
 
-if (is_array($param)) :	foreach ($param as $key => $value) :
-		$str .= ($value['required'] === false && !$option) ? " [" : "";
-		$str .= ($i > 0) ? "," : "";
-		$str .= " ";
+if (is_array($param)) :
+    foreach ($param as $key => $value) :
+        $str .= ($value['required'] === false && !$option) ? " [" : "";
+        $str .= ($i > 0) ? "," : "";
+        $str .= " ";
         $str .= (isset($value['nullable']) && $value['nullable'] && $value['type'] !== "mixed") ? "?" : "";
-		$str .= $value['type'];
-		$str .= " ";
-		$str .= $key;
-		$str .= (isset($value['default'])) ? " = ".speakBool($value['default']) : "";
+        $str .= $value['type'];
+        $str .= " ";
+        $str .= $key;
+        $str .= (isset($value['default'])) ? " = ".speakBool($value['default']) : "";
 
-		if ($value['required'] === false && !$option) { $option = true; }
-		$i++;
-	endforeach;
+        ($value['required'] === false && !$option) ? $option = true : null;
+        $i++;
+    endforeach;
 endif;
 
-	if ($option) {
-		$str .= "]";
-	}
+    if ($option) :
+        $str .= "]";
+    endif;
 
-	$str .= " )";
+    $str .= " )";
 
 
-	return "```php
+    return "```php
 ".$public." ".(($static)?"static ":'$').$class.(($static)?"::":' -> ').$method." ".$str. ( ($return_type !== null) ? " : ".$return_type : "" )."
 ```";
 }
 
-function cleverRelated ($name)
+function cleverRelated (string $name) : string
 {
   $infos = explode('::', $name);
   $infos[0] = str_replace('static ', '', $infos[0]);
@@ -99,12 +102,11 @@ function cleverRelated ($name)
 }
 
 
-function createMarkdownContent (array $entry)
+function createMarkdownContent (array $entry) : string
 {
+    // Header
 
-	// Header
-
-	$md =
+    $md =
 "## ".
 $entry['visibility'].
 (($entry['static']) ? " static " : " "). 
@@ -116,34 +118,34 @@ $entry['class']."::".$entry['name'].     "
 
 ".$entry['description']."    ";
 
-	// Input
+    // Input
 
 
 if (isset($entry['input'])) :
-	foreach ($entry['input'] as $key => $value ) :
+    foreach ($entry['input'] as $key => $value ) :
 $md .= "
 
 ##### **".$key.":** *".$value['type']."*   
 ".((isset($value['text']))?$value['text']:"")."    
 ";
-	endforeach;
+    endforeach;
 endif;
 
-	
-	// Return Value
+    
+    // Return Value
 
-	$md .= "
+    $md .= "
 
 ### Return value:   
 
 ".$entry['return']."
 ";
 
-	// Related methods
+    // Related methods
 
-	if(!empty($entry['related'])) :
+    if(!empty($entry['related'])) :
 
-		$md .=
+        $md .=
 "
 ---------------------------------------
 
@@ -151,19 +153,19 @@ endif;
 
 ";
 
-		foreach ($entry['related'] as $value) {
+        foreach ($entry['related'] as $value) :
 
-      if ($value === $entry['class'].'::'.$entry['name']) : continue; endif;
+            if ($value === $entry['class'].'::'.$entry['name']) : continue; endif;
 
-$md .= "* ".cleverRelated($value)."    
+            $md .= "* ".cleverRelated($value)."    
 ";
-		}
+        endforeach;
 
-	endif;
+    endif;
 
-	if(!empty($entry['examples'])) :
+    if(!empty($entry['examples'])) :
 
-		$md .=
+        $md .=
 "
 ---------------------------------------
 
@@ -171,13 +173,13 @@ $md .= "* ".cleverRelated($value)."
 
 ";
 
-	foreach ($entry['examples'] as $key => $value) {
-$md .= "* **[".$key."](".$value.")**    
+        foreach ($entry['examples'] as $key => $value) :
+            $md .= "* **[".$key."](".$value.")**    
 ";
-	}
+        endforeach;
 
-	endif;
+    endif;
 
-	return $md;
+    return $md;
 
 }
