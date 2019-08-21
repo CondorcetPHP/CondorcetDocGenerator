@@ -14,7 +14,7 @@
     ],
     "require": {
         "php": ">=7.1.0",
-        "mustangostang/spyc": "^0.6.2"
+        "symfony/yaml": "^4.3"
     },
     "suggest": {
         "julien-boudry/Condorcet": "condorcet-docGenerator was created specialy and only for CondorcetPHP"

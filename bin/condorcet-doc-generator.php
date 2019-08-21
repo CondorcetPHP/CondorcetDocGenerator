@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+use Symfony\Component\Yaml\Yaml;
+
 $start_time = microtime(true);
 
 $pathDirectory = $argv[1];
@@ -9,7 +11,7 @@ if (substr($pathDirectory, -1) !== DIRECTORY_SEPARATOR) :
     $pathDirectory .= DIRECTORY_SEPARATOR;
 endif;
 
-$doc = Spyc::YAMLLoad($pathDirectory.'doc.yaml');
+$doc = Yaml::parseFile($pathDirectory.'doc.yaml');
 
 foreach ($doc as $entry) :
   if (!isset($entry['publish']) || $entry['publish'] !== true) :
@@ -118,7 +120,8 @@ $entry['class']."::".$entry['name'].     "
 	// Input
 
 
-if (isset($entry['input'])) :	foreach ($entry['input'] as $key => $value ) :
+if (isset($entry['input'])) :
+	foreach ($entry['input'] as $key => $value ) :
 $md .= "
 
 ##### **".$key.":** *".$value['type']."*   
