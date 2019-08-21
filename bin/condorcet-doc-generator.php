@@ -114,8 +114,7 @@ $entry['class']."::".$entry['name'].     "
 
 ".computeCleverSpec($entry['static'], $entry['visibility'], $entry['class'],$entry['name'],(isset($entry['input'])) ? $entry['input'] : null, (isset($entry['return_type'])) ? $entry['return_type'] : null)."
 
-".$entry['description']."    
-";
+".$entry['description']."    ";
 
 	// Input
 
@@ -126,7 +125,6 @@ $md .= "
 
 ##### **".$key.":** *".$value['type']."*   
 ".((isset($value['text']))?$value['text']:"")."    
-
 ";
 	endforeach;
 endif;
@@ -139,7 +137,6 @@ endif;
 ### Return value:   
 
 ".$entry['return']."
-
 ";
 
 	// Related methods
