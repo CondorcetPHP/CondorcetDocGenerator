@@ -233,7 +233,7 @@ function makeIndex (array $index, string $file_content) : void
         $file_content .= '## CondorcetPHP\Condorcet\\'.$class." Class  \n\n";
 
         foreach ($methods as $oneMethod) :
-            $url = $oneMethod['class'].' Class/'.$oneMethod['visibility'].' '.(($oneMethod['static'])?'static ':'') . $oneMethod['class']."--". $oneMethod['name'] . '.md' ;
+            $url = str_replace("\\","_",$oneMethod['class']).' Class/'.$oneMethod['visibility'].' '.(($oneMethod['static'])?'static ':'') . str_replace("\\","_",$oneMethod['class']."--". $oneMethod['name']) . '.md' ;
             $url = str_replace(' ', '%20', $url);
 
             $file_content .= "* [".makeRepresentation($oneMethod, true)."](".$url.")  \n";
