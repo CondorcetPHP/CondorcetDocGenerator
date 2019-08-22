@@ -12,6 +12,9 @@ if (substr($pathDirectory, -1) !== DIRECTORY_SEPARATOR) :
 endif;
 
 $doc = Yaml::parseFile($pathDirectory.'doc.yaml');
+$header = $doc[0]['header'];
+unset($doc[0]);
+
 $index  = [];
 
 foreach ($doc as $entry) :
@@ -40,7 +43,7 @@ foreach ($doc as $entry) :
 endforeach;
 
 uksort($index,'strnatcmp');
-makeIndex($index);
+makeIndex($index,$header);
 
 
 echo 'YAH ! <br>' . (microtime(true) - $start_time) .'s';
@@ -211,14 +214,9 @@ function computeRepresentationAsForIndex (bool $static, string $public, string $
 }
 
 
-function makeIndex (array $index) : void
+function makeIndex (array $index, string $file_content) : void
 {
     global $pathDirectory;
-
-    $file_content = "# Public Methods Index _(Not yet exhaustive, not yet....)*_\n";
-    $file_content .=  "_Not including technical public methods which ones are used for very advanced use between components (typically if you extend Coondorcet or build your own modules)._    \n\n";
-
-    $file_content .=  "_*: I try to update and complete the documentation. See also [the manual](https://github.com/julien-boudry/Condorcet/wiki), [the tests](../Tests) also produce many examples. And create issues for questions or fixing documentation!_    \n\n";
 
     foreach ($index as $class => &$methods) :
 
