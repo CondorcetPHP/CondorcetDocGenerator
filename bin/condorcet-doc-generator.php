@@ -110,12 +110,16 @@ endif;
     
     // Return Value
 
+if (isset($entry['return'])) :
+
+
     $md .= "
 
 ### Return value:   
 
-".$entry['return']."
+*(".$entry['return_type'].")* ".$entry['return']."
 ";
+endif;
 
     // Related methods
 
