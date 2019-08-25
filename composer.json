@@ -17,8 +17,5 @@
         "symfony/yaml": "^4.3",
         "julien-boudry/condorcet": "*"
     },
-    "suggest": {
-        "julien-boudry/Condorcet": "condorcet-docGenerator was created specialy and only for CondorcetPHP"
-    },
     "bin": ["bin/condorcet-doc"]
 }
