@@ -39,6 +39,10 @@ foreach ($doc as $entry) :
     file_put_contents($path.makeFilename($method), createMarkdownContent($method));
 
     $index[$method['class']][$method['name']] = $method;
+
+    if(!method_exists('CondorcetPHP\\Condorcet\\'.$method['class'], $method['name'])) :
+        print "The method does not exist >> ".$method['class']." >> ".$method['name']."\n";
+    endif;
   endforeach;
 endforeach;
 

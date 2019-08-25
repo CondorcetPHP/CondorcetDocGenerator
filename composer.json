@@ -14,7 +14,8 @@
     ],
     "require": {
         "php": ">=7.1.0",
-        "symfony/yaml": "^4.3"
+        "symfony/yaml": "^4.3",
+        "julien-boudry/condorcet": "*"
     },
     "suggest": {
         "julien-boudry/Condorcet": "condorcet-docGenerator was created specialy and only for CondorcetPHP"
