@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 
+use HaydenPierce\ClassFinder\ClassFinder;
 use Symfony\Component\Yaml\Yaml;
 
 $start_time = microtime(true);
@@ -12,11 +13,19 @@ if (substr($pathDirectory, -1) !== DIRECTORY_SEPARATOR) :
 endif;
 
 $doc = Yaml::parseFile($pathDirectory.'doc.yaml');
+
+// Header & Prefix
 $header = $doc[0]['header'];
 unset($doc[0]);
 
+$undocumented_prefix = $doc[1]['undocumented_prefix'] . "\n";
+unset($doc[1]);
+
+
+// 
 $index  = [];
 $classList = [];
+$FullClassList = ClassFinder::getClassesInNamespace('CondorcetPHP\Condorcet\\', ClassFinder::RECURSIVE_MODE);
 
 foreach ($doc as $entry) :
   if (!isset($entry['publish']) || $entry['publish'] !== true) :
@@ -41,19 +50,18 @@ foreach ($doc as $entry) :
 
     $index[$method['class']][$method['name']] = $method;
 
-    if(!method_exists('CondorcetPHP\\Condorcet\\'.$method['class'], $method['name'])) :
+    if(!method_exists('CondorcetPHP\Condorcet\\'.$method['class'], $method['name'])) :
         print "The method does not exist >> ".$method['class']." >> ".$method['name']."\n";
     endif;
-
-    $classList[$class] = 'CondorcetPHP\\Condorcet\\'.$class;
   endforeach;
 endforeach;
 
 $inDoc = 0;
 $non_inDoc = 0;
 
-foreach ($classList as $shortClass => $FullClass) :
+foreach ($FullClassList as $FullClass) :
     $methods = (new ReflectionClass($FullClass))->getMethods(ReflectionMethod::IS_PUBLIC);
+    $shortClass = str_replace('CondorcetPHP\Condorcet\\', '', $FullClass);
 
     foreach ($methods as $oneMethod) :
         if ( !isset($index[$shortClass][$oneMethod->name]) ) :
@@ -66,8 +74,41 @@ endforeach;
 
 print "Public methods in doc: ".$inDoc." / ".($inDoc + $non_inDoc)." \n";
 
+$privateAndUndocumentedList = [];
+
+foreach ($FullClassList as $FullClass) :
+    $methods = (new ReflectionClass($FullClass))->getMethods();
+    $shortClass = str_replace('CondorcetPHP\Condorcet\\', '', $FullClass);
+
+    foreach ($methods as $oneMethod) :
+        if ( !isset($index[$shortClass][$oneMethod->name]) ) :
+            $privateAndUndocumentedList[$shortClass][] = [  'FullClass' => $FullClass,
+                                                            'shortClass' => $shortClass,
+                                                            'name' => $oneMethod->name,
+                                                            'static' => $oneMethod->isStatic(),
+                                                            'visibility_public' => $oneMethod->isPublic(),
+                                                            'visibility_protected' => $oneMethod->isProtected(),
+                                                            'visibility_private' => $oneMethod->isPrivate(),
+                                                            'ReflectionMethod' => $oneMethod,
+                                                            'ReflectionClass' => $oneMethod->getDeclaringClass(),
+                                                        ];
+        endif;
+    endforeach;
+endforeach;
+
+// Add Index
 uksort($index,'strnatcmp');
-makeIndex($index,$header);
+$file_content = makeIndex($index, $header);
+
+$file_content .= "\n\n\n";
+
+uksort($privateAndUndocumentedList,'strnatcmp');
+var_dump(count($privateAndUndocumentedList));
+$file_content .= makeProfundis($privateAndUndocumentedList, $undocumented_prefix);
+
+
+// Write file
+file_put_contents($pathDirectory."\\README.md", $file_content);
 
 
 echo 'YAH ! <br>' . (microtime(true) - $start_time) .'s';
@@ -242,11 +283,9 @@ function computeRepresentationAsForIndex (bool $static, string $public, string $
 }
 
 
-function makeIndex (array $index, string $file_content) : void
+function makeIndex (array $index, $file_content ) : string
 {
-    global $pathDirectory;
-
-    foreach ($index as $class => &$methods) :
+    foreach ($index as $class => $methods) :
 
         usort($methods,function (array $a, array $b) {
             if ($a['static'] === $b['static']) :
@@ -258,6 +297,7 @@ function makeIndex (array $index, string $file_content) : void
             endif;
         });
 
+        $file_content .= "\n";
         $file_content .= '## CondorcetPHP\Condorcet\\'.$class." Class  \n\n";
 
         foreach ($methods as $oneMethod) :
@@ -269,6 +309,77 @@ function makeIndex (array $index, string $file_content) : void
 
     endforeach;
 
+    return $file_content;
+}
 
-    file_put_contents($pathDirectory."\\README.md", $file_content);
+
+function makeProfundis (array $index, $file_content) : string
+{
+    foreach ($index as $class => &$methods) :
+
+        usort($methods,function (array $a, array $b) {
+            if ($a['static'] === $b['static']) :
+                if ( $a['visibility_public'] && !$b['visibility_public'] )  :
+                    return -1;
+                elseif ( !$a['visibility_public'] && $b['visibility_public'] ) :
+                    return 1;
+                else :
+                    if ($a['visibility_protected'] && !$b['visibility_protected']) :
+                        return -1;
+                    elseif (!$a['visibility_protected'] && $b['visibility_protected']) :
+                        return 1;
+                    else :
+                         return strnatcmp($a['name'],$b['name']);
+                    endif;
+                endif;
+            elseif ($a['static'] && !$b['static']) :
+                return -1;
+            else :
+                return 1;
+            endif;
+        });
+
+        $ReflectionClass = new ReflectionClass('CondorcetPHP\Condorcet\\'.$class);
+
+        $file_content .= "\n";
+        $file_content .= '## ';
+        $file_content .= ($ReflectionClass->isAbstract()) ? 'Abstract ' : '';
+        $file_content .= 'CondorcetPHP\Condorcet\\'.$class.' ';
+
+        $file_content .= ($p = $ReflectionClass->getParentClass()) ? 'extends '.$p->name.' ' : '';
+
+        $interfaces = implode(', ', $ReflectionClass->getInterfaceNames());
+        $file_content .= (!empty($interfaces)) ? 'implements '.$interfaces : '';
+
+        $file_content .= "  \n";
+
+
+
+        foreach ($methods as $oneMethod) :
+            $parameters = $oneMethod['ReflectionMethod']->getParameters();
+            $parameters_string = '';
+
+            $i = 0;
+            foreach ($parameters as $oneP) :
+                $parameters_string .= (++$i > 1) ? ', ' : '';
+
+                // $parameters_string .= (string) $oneP->getType() . ' ';
+                $parameters_string .= '$'.$oneP->name;
+            endforeach;
+
+            $representation = ($oneMethod['visibility_public']) ? 'public ' : '';
+            $representation .= ($oneMethod['visibility_protected']) ? 'protected ' : '';
+            $representation .= ($oneMethod['visibility_private']) ? 'private ' : '';
+
+            $representation .=  ($oneMethod['static']) ? 'static ' : '';
+            $representation .=  $oneMethod['name'] . ' ('.$parameters_string.')';
+
+
+
+            $file_content .= "* ".$representation."  \n";
+        endforeach;
+
+    endforeach;
+
+    return $file_content;
 }
