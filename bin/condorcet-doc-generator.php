@@ -16,6 +16,7 @@ $header = $doc[0]['header'];
 unset($doc[0]);
 
 $index  = [];
+$classList = [];
 
 foreach ($doc as $entry) :
   if (!isset($entry['publish']) || $entry['publish'] !== true) :
@@ -43,8 +44,27 @@ foreach ($doc as $entry) :
     if(!method_exists('CondorcetPHP\\Condorcet\\'.$method['class'], $method['name'])) :
         print "The method does not exist >> ".$method['class']." >> ".$method['name']."\n";
     endif;
+
+    $classList[$class] = 'CondorcetPHP\\Condorcet\\'.$class;
   endforeach;
 endforeach;
+
+$inDoc = 0;
+$non_inDoc = 0;
+
+foreach ($classList as $shortClass => $FullClass) :
+    $methods = (new ReflectionClass($FullClass))->getMethods(ReflectionMethod::IS_PUBLIC);
+
+    foreach ($methods as $oneMethod) :
+        if ( !isset($index[$shortClass][$oneMethod->name]) ) :
+            $non_inDoc++;
+        else :
+            $inDoc++;
+        endif;
+    endforeach;
+endforeach;
+
+print "Public methods in doc: ".$inDoc." / ".($inDoc + $non_inDoc)." \n";
 
 uksort($index,'strnatcmp');
 makeIndex($index,$header);
