@@ -108,7 +108,7 @@ print "Public methods in doc: ".$inDoc." / ".($inDoc + $non_inDoc)." | Total met
 uksort($index,'strnatcmp');
 $file_content = makeIndex($index, $header);
 
-$file_content .= "\n\n\n";
+$file_content .= ".  \n.  \n.  \n";
 
 uksort($privateAndUndocumentedList,'strnatcmp');
 $file_content .= makeProfundis($privateAndUndocumentedList, $undocumented_prefix);
@@ -337,7 +337,7 @@ function makeIndex (array $index, $file_content ) : string
         });
 
         $file_content .= "\n";
-        $file_content .= '## CondorcetPHP\Condorcet\\'.$class." Class  \n\n";
+        $file_content .= '### CondorcetPHP\Condorcet\\'.$class." Class  \n\n";
 
         foreach ($methods as $oneMethod) :
             $url = str_replace("\\","_",$oneMethod['class']).' Class/'.$oneMethod['visibility'].' '.(($oneMethod['static'])?'static ':'') . str_replace("\\","_",$oneMethod['class']."--". $oneMethod['name']) . '.md' ;
@@ -381,7 +381,7 @@ function makeProfundis (array $index, $file_content) : string
         $ReflectionClass = new ReflectionClass('CondorcetPHP\Condorcet\\'.$class);
 
         $file_content .= "\n";
-        $file_content .= '## ';
+        $file_content .= '#### ';
         $file_content .= ($ReflectionClass->isAbstract()) ? 'Abstract ' : '';
         $file_content .= 'CondorcetPHP\Condorcet\\'.$class.' ';
 
