@@ -27,7 +27,7 @@ $index  = [];
 $classList = [];
 $FullClassList = ClassFinder::getClassesInNamespace('CondorcetPHP\Condorcet\\', ClassFinder::RECURSIVE_MODE);
 
-foreach ($doc as $entry) :
+foreach ($doc as &$entry) :
   if (!isset($entry['publish']) || $entry['publish'] !== true) :
     continue;
   endif;
@@ -52,6 +52,10 @@ foreach ($doc as $entry) :
 
     if(!method_exists('CondorcetPHP\Condorcet\\'.$method['class'], $method['name'])) :
         print "The method does not exist >> ".$method['class']." >> ".$method['name']."\n";
+    else :
+        $method['ReflectionMethod'] = new ReflectionMethod ('CondorcetPHP\Condorcet\\'.$method['class'],$method['name']);
+
+        checkEntry($method);
     endif;
   endforeach;
 endforeach;
@@ -72,10 +76,9 @@ foreach ($FullClassList as $FullClass) :
     endforeach;
 endforeach;
 
-print "Public methods in doc: ".$inDoc." / ".($inDoc + $non_inDoc)." \n";
-
 $privateAndUndocumentedList = [];
 
+$total_methods = 0;
 foreach ($FullClassList as $FullClass) :
     $methods = (new ReflectionClass($FullClass))->getMethods();
     $shortClass = str_replace('CondorcetPHP\Condorcet\\', '', $FullClass);
@@ -93,8 +96,13 @@ foreach ($FullClassList as $FullClass) :
                                                             'ReflectionClass' => $oneMethod->getDeclaringClass(),
                                                         ];
         endif;
+
+        $total_methods++;
     endforeach;
 endforeach;
+
+
+print "Public methods in doc: ".$inDoc." / ".($inDoc + $non_inDoc)." | Total methods count: ".$total_methods." | Number of Class: ".count($FullClassList)."\n";
 
 // Add Index
 uksort($index,'strnatcmp');
@@ -103,7 +111,6 @@ $file_content = makeIndex($index, $header);
 $file_content .= "\n\n\n";
 
 uksort($privateAndUndocumentedList,'strnatcmp');
-var_dump(count($privateAndUndocumentedList));
 $file_content .= makeProfundis($privateAndUndocumentedList, $undocumented_prefix);
 
 
@@ -247,9 +254,9 @@ function computeRepresentationAsPHP (bool $static, string $public, string $class
 
 if (is_array($param)) :
     foreach ($param as $key => $value) :
-        $str .= ($value['required'] === false && !$option) ? " [" : "";
-        $str .= ($i > 0) ? "," : "";
         $str .= " ";
+        $str .= ($value['required'] === false && !$option) ? "[" : "";
+        $str .= ($i > 0) ? ", " : "";
         $str .= (isset($value['nullable']) && $value['nullable'] && $value['type'] !== "mixed") ? "?" : "";
         $str .= $value['type'];
         $str .= " ";
@@ -280,6 +287,38 @@ function computeRepresentationAsForIndex (bool $static, string $public, string $
             (($static)?"::":'->').
             $method.
             "()";
+}
+
+function checkEntry(array $entry) : void
+{
+    $parameters = $entry['ReflectionMethod']->getParameters();
+
+    $iec = isset($entry['input']) ? count($entry['input']) : 0;
+
+    // Check different number of parameters
+    if (count($parameters) !== $iec) :
+        print 'Differents parameters count: '.$entry['class']."::".$entry['name']."\n";
+    endif;
+
+    // Check different name for parameters doc. vs technical
+    foreach ($parameters as $p) :
+        if (!in_array($p->name, array_keys($entry['input']), true)):
+            print 'Input not in Reflection: '.$entry['class']."::".$entry['name']." => ".$p->name."  docInput:{".implode(',', array_keys($entry['input']))."}\n";
+        endif;
+    endforeach;
+
+    // Check Parameters Orders
+    if ($iec > 0) :
+        $im = array_keys($entry['input']);
+        reset($im);
+        foreach ($parameters as $ri => $p) :
+            if ($p->name !== current($im)):
+                print 'Parameters Orders Warning: '.$entry['class']."::".$entry['name']." => ".$ri.":".$p->name."  docInput:{".implode(',', array_keys($entry['input']))."}\n";
+            endif;
+
+            next($im);
+        endforeach;
+    endif;
 }
 
 
@@ -372,7 +411,8 @@ function makeProfundis (array $index, $file_content) : string
             $representation .= ($oneMethod['visibility_private']) ? 'private ' : '';
 
             $representation .=  ($oneMethod['static']) ? 'static ' : '';
-            $representation .=  $oneMethod['name'] . ' ('.$parameters_string.')';
+            // $representation .=  $oneMethod['name'] . ' ('.$parameters_string.')';
+            $representation .=  $oneMethod['name'] . '()';
 
 
 
