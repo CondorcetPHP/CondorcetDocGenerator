@@ -48,8 +48,6 @@ foreach ($doc as &$entry) :
 
     file_put_contents($path.makeFilename($method), createMarkdownContent($method));
 
-    $index[$method['class']][$method['name']] = $method;
-
     if(!method_exists('CondorcetPHP\Condorcet\\'.$method['class'], $method['name'])) :
         print "The method does not exist >> ".$method['class']." >> ".$method['name']."\n";
     else :
@@ -57,6 +55,8 @@ foreach ($doc as &$entry) :
 
         checkEntry($method);
     endif;
+
+    $index[$method['class']][$method['name']] = $method;
   endforeach;
 endforeach;
 
@@ -135,7 +135,7 @@ function speakBool ($c) : string
   if ($c === null || $c === 'null') : return 'null'; endif;
   if (is_array($c)) : return '['.implode(',', $c).']'; endif;
 
-  return $c;
+  return (string) $c;
 }
 
 
@@ -287,7 +287,7 @@ function computeRepresentationAsForIndex (bool $static, string $public, string $
             $class.
             (($static)?"::":'->').
             $method.
-            "()";
+            "(".(empty($param) ? '' : '...').")";
 }
 
 function checkEntry(array $entry) : void
@@ -331,12 +331,10 @@ function checkEntry(array $entry) : void
             $docDefaultValue = !isset($iParam['default']) ? null : speakBool($iParam['default']);
             $rfDefaultValue = (!$rfParam->isDefaultValueAvailable()) ? null : speakBool($rfParam->getDefaultValue());
 
-
             // Check Type
             if ($rfType !== $docType && !(substr_count($iParam['type'],'mixed') === 1 && $rfType === null)) :
                 print 'Different input type: '.$entry['class']."::".$entry['name'].">$".$iName." => Doc: ".$docType." / Reflection: ".$rfType."\n";
             endif;
-
 
             // Check default Value
             if ($rfDefaultValue !== $docDefaultValue) :
@@ -390,7 +388,14 @@ function makeIndex (array $index, $file_content ) : string
             $url = str_replace("\\","_",$oneMethod['class']).' Class/'.$oneMethod['visibility'].' '.(($oneMethod['static'])?'static ':'') . str_replace("\\","_",$oneMethod['class']."--". $oneMethod['name']) . '.md' ;
             $url = str_replace(' ', '%20', $url);
 
-            $file_content .= "* [".makeRepresentation($oneMethod, true)."](".$url.")  \n";
+            $file_content .= "* [".makeRepresentation($oneMethod, true)."](".$url.")";
+
+            if ($oneMethod['ReflectionMethod']->hasReturnType()) :
+                $file_content .= ' : '.getReturnTypeAsString($oneMethod['ReflectionMethod']->getReturnType());
+            endif;
+
+
+            $file_content .= "  \n";
         endforeach;
 
     endforeach;
@@ -449,8 +454,14 @@ function makeProfundis (array $index, $file_content) : string
             foreach ($parameters as $oneP) :
                 $parameters_string .= (++$i > 1) ? ', ' : '';
 
-                // $parameters_string .= (string) $oneP->getType() . ' ';
+                if ($oneP->getType() !== null) :
+                    $parameters_string .= getReturnTypeAsString($oneP->getType()) . ' ';
+                endif;
                 $parameters_string .= '$'.$oneP->name;
+
+                if ($oneP->isDefaultValueAvailable()) :
+                    $parameters_string .= ' = '.speakBool($oneP->getDefaultValue());
+                endif;
             endforeach;
 
             $representation = ($oneMethod['visibility_public']) ? 'public ' : '';
@@ -458,10 +469,11 @@ function makeProfundis (array $index, $file_content) : string
             $representation .= ($oneMethod['visibility_private']) ? 'private ' : '';
 
             $representation .=  ($oneMethod['static']) ? 'static ' : '';
-            // $representation .=  $oneMethod['name'] . ' ('.$parameters_string.')';
-            $representation .=  $oneMethod['name'] . '()';
+            $representation .=  $oneMethod['name'] . ' ('.$parameters_string.')';
 
-
+            if ($oneMethod['ReflectionMethod']->hasReturnType()) :
+                $representation .= ' : '.getReturnTypeAsString($oneMethod['ReflectionMethod']->getReturnType());
+            endif;
 
             $file_content .= "* ".$representation."  \n";
         endforeach;
