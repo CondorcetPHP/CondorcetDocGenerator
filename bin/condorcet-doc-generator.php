@@ -287,7 +287,7 @@ function computeRepresentationAsForIndex (bool $static, string $public, string $
             $class.
             (($static)?"::":'->').
             $method.
-            "(".(empty($param) ? '' : '...').")";
+            " (".(empty($param) ? '' : '...').")";
 }
 
 function checkEntry(array $entry) : void
