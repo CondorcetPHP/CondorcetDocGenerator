@@ -133,6 +133,7 @@ function speakBool ($c) : string
   if ($c === true || $c === 'true') : return 'true'; endif;
   if ($c === false || $c === 'false') : return 'false'; endif;
   if ($c === null || $c === 'null') : return 'null'; endif;
+  if (is_array($c)) : return '['.implode(',', $c).']'; endif;
 
   return $c;
 }
@@ -173,7 +174,7 @@ if (isset($entry['input'])) :
     foreach ($entry['input'] as $key => $value ) :
 $md .= "
 
-##### **".$key.":** *".$value['type']."*   
+##### **".$key.":** *".((empty($value['nullable'])) ? $value['type'] : '?'.$value['type'])."*   
 ".((isset($value['text']))?$value['text']:"")."    
 ";
     endforeach;
@@ -320,20 +321,51 @@ function checkEntry(array $entry) : void
         endforeach;
     endif;
 
-    // Check return type
-    $reflection_return_type = $entry['ReflectionMethod']->getReturnType();
+    // Check Type && Default Value
+    if ($iec > 0) :
+        $i = 0;
+        foreach ($entry['input'] as $iName => $iParam) :
+            $rfParam = $parameters[$i];
+            $rfType = getReturnTypeAsString($rfParam->getType());
+            $docType = ($iParam['nullable'] ?? false) ? '?'.$iParam['type'] : $iParam['type'];
+            $docDefaultValue = !isset($iParam['default']) ? null : speakBool($iParam['default']);
+            $rfDefaultValue = (!$rfParam->isDefaultValueAvailable()) ? null : speakBool($rfParam->getDefaultValue());
 
-    if ( $reflection_return_type !== null ) :
-        $allowsNull = $reflection_return_type->allowsNull();
-        $reflection_return_type = $reflection_return_type->getName();
-        $reflection_return_type = $allowsNull ? '?'.$reflection_return_type : $reflection_return_type;
+
+            // Check Type
+            if ($rfType !== $docType && !(substr_count($iParam['type'],'mixed') === 1 && $rfType === null)) :
+                print 'Different input type: '.$entry['class']."::".$entry['name'].">$".$iName." => Doc: ".$docType." / Reflection: ".$rfType."\n";
+            endif;
+
+
+            // Check default Value
+            if ($rfDefaultValue !== $docDefaultValue) :
+                print 'Different param default value: '.$entry['class']."::".$entry['name'].">$".$iName." => Doc: ".$docDefaultValue." / Reflection: ".$rfDefaultValue."\n";
+            endif;
+            $i++;
+        endforeach;
     endif;
+
+
+    // Check return type
+    $reflection_return_type = getReturnTypeAsString($entry['ReflectionMethod']->getReturnType());
 
     $doc_return_type = $entry['return_type'] ?? null;
 
     if ($doc_return_type !== $reflection_return_type && !($reflection_return_type === null && $doc_return_type === '?mixed')) :
         print 'Different return type: '.$entry['class']."::".$entry['name']." => Doc: ".$doc_return_type." / Reflection: ".$reflection_return_type."\n";
     endif;
+}
+
+function getReturnTypeAsString (?\ReflectionType $rf_rt) : ?string
+{
+    if ( $rf_rt !== null ) :
+        $allowsNull = $rf_rt->allowsNull();
+        $rf_rt = $rf_rt->getName();
+        $rf_rt = $allowsNull ? '?'.$rf_rt : $rf_rt;
+    endif;
+
+    return $rf_rt;
 }
 
 
