@@ -15,7 +15,7 @@
     "require": {
         "php": ">=7.1.0",
         "symfony/yaml": "^4.3",
-        "julien-boudry/condorcet": "*",
+        "julien-boudry/condorcet": "dev-master",
         "haydenpierce/class-finder": "^0.3.3"
     },
     "bin": ["bin/condorcet-doc"]

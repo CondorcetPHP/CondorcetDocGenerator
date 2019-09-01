@@ -28,7 +28,7 @@ $classList = [];
 $FullClassList = ClassFinder::getClassesInNamespace('CondorcetPHP\Condorcet\\', ClassFinder::RECURSIVE_MODE);
 
 foreach ($doc as &$entry) :
-  if (!isset($entry['publish']) || $entry['publish'] !== true) :
+  if (isset($entry['publish']) && $entry['publish'] !== true) :
     continue;
   endif;
 
@@ -318,6 +318,21 @@ function checkEntry(array $entry) : void
 
             next($im);
         endforeach;
+    endif;
+
+    // Check return type
+    $reflection_return_type = $entry['ReflectionMethod']->getReturnType();
+
+    if ( $reflection_return_type !== null ) :
+        $allowsNull = $reflection_return_type->allowsNull();
+        $reflection_return_type = $reflection_return_type->getName();
+        $reflection_return_type = $allowsNull ? '?'.$reflection_return_type : $reflection_return_type;
+    endif;
+
+    $doc_return_type = $entry['return_type'] ?? null;
+
+    if ($doc_return_type !== $reflection_return_type && !($reflection_return_type === null && $doc_return_type === '?mixed')) :
+        print 'Different return type: '.$entry['class']."::".$entry['name']." => Doc: ".$doc_return_type." / Reflection: ".$reflection_return_type."\n";
     endif;
 }
 
