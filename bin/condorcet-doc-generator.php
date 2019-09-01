@@ -390,7 +390,7 @@ function makeIndex (array $index, $file_content ) : string
 
             $file_content .= "* [".makeRepresentation($oneMethod, true)."](".$url.")";
 
-            if ($oneMethod['ReflectionMethod']->hasReturnType()) :
+            if (isset($oneMethod['ReflectionMethod']) && $oneMethod['ReflectionMethod']->hasReturnType()) :
                 $file_content .= ' : '.getReturnTypeAsString($oneMethod['ReflectionMethod']->getReturnType());
             endif;
 
