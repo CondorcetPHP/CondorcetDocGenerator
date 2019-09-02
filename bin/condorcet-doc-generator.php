@@ -68,7 +68,7 @@ foreach ($FullClassList as $FullClass) :
     $shortClass = str_replace('CondorcetPHP\Condorcet\\', '', $FullClass);
 
     foreach ($methods as $oneMethod) :
-        if ( !isset($index[$shortClass][$oneMethod->name]) ) :
+        if ( !isset($index[$shortClass][$oneMethod->name]) && !$oneMethod->isInternal()) :
             $non_inDoc++;
         else :
             $inDoc++;
@@ -76,33 +76,40 @@ foreach ($FullClassList as $FullClass) :
     endforeach;
 endforeach;
 
-$privateAndUndocumentedList = [];
+$full_methods_list = [];
 
 $total_methods = 0;
+$total_nonInternal_methods = 0;
+
 foreach ($FullClassList as $FullClass) :
     $methods = (new ReflectionClass($FullClass))->getMethods();
     $shortClass = str_replace('CondorcetPHP\Condorcet\\', '', $FullClass);
 
     foreach ($methods as $oneMethod) :
-        if ( !isset($index[$shortClass][$oneMethod->name]) ) :
-            $privateAndUndocumentedList[$shortClass][] = [  'FullClass' => $FullClass,
-                                                            'shortClass' => $shortClass,
-                                                            'name' => $oneMethod->name,
-                                                            'static' => $oneMethod->isStatic(),
-                                                            'visibility_public' => $oneMethod->isPublic(),
-                                                            'visibility_protected' => $oneMethod->isProtected(),
-                                                            'visibility_private' => $oneMethod->isPrivate(),
-                                                            'ReflectionMethod' => $oneMethod,
-                                                            'ReflectionClass' => $oneMethod->getDeclaringClass(),
-                                                        ];
+        if ( true /*!isset($index[$shortClass][$oneMethod->name])*/ ) :
+            $full_methods_list[$shortClass][] = [   'FullClass' => $FullClass,
+                                                    'shortClass' => $shortClass,
+                                                    'name' => $oneMethod->name,
+                                                    'static' => $oneMethod->isStatic(),
+                                                    'visibility_public' => $oneMethod->isPublic(),
+                                                    'visibility_protected' => $oneMethod->isProtected(),
+                                                    'visibility_private' => $oneMethod->isPrivate(),
+                                                    'ReflectionMethod' => $oneMethod,
+                                                    'ReflectionClass' => $oneMethod->getDeclaringClass(),
+                                                ];
         endif;
 
         $total_methods++;
+
+        if (!$oneMethod->isInternal()) :
+            $total_nonInternal_methods++;
+        endif;
+
     endforeach;
 endforeach;
 
 
-print "Public methods in doc: ".$inDoc." / ".($inDoc + $non_inDoc)." | Total methods count: ".$total_methods." | Number of Class: ".count($FullClassList)."\n";
+print "Public methods in doc: ".$inDoc." / ".($inDoc + $non_inDoc)." | Total non-internal methods count: ".$total_nonInternal_methods." | Number of Class: ".count($FullClassList)." | Number of Methods including internals: ".$total_methods."\n";
 
 // Add Index
 uksort($index,'strnatcmp');
@@ -110,8 +117,8 @@ $file_content = makeIndex($index, $header);
 
 $file_content .= ".  \n.  \n.  \n";
 
-uksort($privateAndUndocumentedList,'strnatcmp');
-$file_content .= makeProfundis($privateAndUndocumentedList, $undocumented_prefix);
+uksort($full_methods_list,'strnatcmp');
+$file_content .= makeProfundis($full_methods_list, $undocumented_prefix);
 
 
 // Write file
