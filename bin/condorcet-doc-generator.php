@@ -443,7 +443,7 @@ function makeProfundis (array $index, $file_content) : string
         $file_content .= (!empty($interfaces)) ? 'implements '.$interfaces : '';
 
         $file_content .= "  \n";
-
+        $file_content .= "```php\n";
 
 
         foreach ($methods as $oneMethod) :
@@ -477,6 +477,8 @@ function makeProfundis (array $index, $file_content) : string
 
             $file_content .= "* ".$representation."  \n";
         endforeach;
+
+        $file_content .= "```\n";
 
     endforeach;
 
