@@ -26,7 +26,7 @@ unset($doc[1]);
 $index  = [];
 $classList = [];
 $FullClassList = ClassFinder::getClassesInNamespace('CondorcetPHP\Condorcet\\', ClassFinder::RECURSIVE_MODE);
-$FullClassList = \array_filter($FullClassList,function (string $value) { return (strpos($value, 'Condorcet\Test') !== FALSE); });
+$FullClassList = \array_filter($FullClassList,function (string $value) { return (strpos($value, 'Condorcet\Test') === FALSE); });
 
 foreach ($doc as &$entry) :
   if (isset($entry['publish']) && $entry['publish'] !== true) :
