@@ -367,7 +367,7 @@ function getReturnTypeAsString (?\ReflectionType $rf_rt) : ?string
 {
     if ( $rf_rt !== null ) :
         $allowsNull = $rf_rt->allowsNull();
-        $rf_rt = $rf_rt->getName();
+        $rf_rt = (string) $rf_rt;
         $rf_rt = $allowsNull ? '?'.$rf_rt : $rf_rt;
     endif;
 
