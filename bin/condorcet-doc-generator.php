@@ -373,7 +373,7 @@ function getReturnTypeAsString (?\ReflectionType $rf_rt) : ?string
 }
 
 
-function makeIndex (array $index, $file_content ) : string
+function makeIndex (array $index, string $file_content ) : string
 {
     foreach ($index as $class => $methods) :
 
@@ -410,7 +410,7 @@ function makeIndex (array $index, $file_content ) : string
 }
 
 
-function makeProfundis (array $index, $file_content) : string
+function makeProfundis (array $index, string $file_content) : string
 {
     foreach ($index as $class => &$methods) :
 
