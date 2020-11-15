@@ -40,6 +40,14 @@ foreach ($doc as &$entry) :
   foreach ($entry['class'] as $class) :
     $method = $entry ;
     $method['class'] = $class;
+    if(!method_exists('CondorcetPHP\Condorcet\\'.$method['class'], $method['name'])) :
+        print "The method does not exist >> ".$method['class']." >> ".$method['name']."\n";
+    else :
+        $method['ReflectionMethod'] = new ReflectionMethod ('CondorcetPHP\Condorcet\\'.$method['class'],$method['name']);
+
+        checkEntry($method);
+    endif;
+    $method['return_type'] = getTypeAsString($method['ReflectionMethod']->getReturnType());
 
     $path = $pathDirectory . str_replace("\\", "_", $method['class']) . " Class/";
 
@@ -48,14 +56,6 @@ foreach ($doc as &$entry) :
     endif;
 
     file_put_contents($path.makeFilename($method), createMarkdownContent($method));
-
-    if(!method_exists('CondorcetPHP\Condorcet\\'.$method['class'], $method['name'])) :
-        print "The method does not exist >> ".$method['class']." >> ".$method['name']."\n";
-    else :
-        $method['ReflectionMethod'] = new ReflectionMethod ('CondorcetPHP\Condorcet\\'.$method['class'],$method['name']);
-
-        checkEntry($method);
-    endif;
 
     $index[$method['class']][$method['name']] = $method;
   endforeach;
@@ -178,12 +178,13 @@ $entry['class']."::".$entry['name'].     "
     // Input
 
 
-if (isset($entry['input'])) :
-    foreach ($entry['input'] as $key => $value ) :
+if (!empty($entry['ReflectionMethod']->getParameters())) :
+    foreach ($entry['ReflectionMethod']->getParameters() as $key => $value ) :
+
 $md .= "
 
-##### **".$key.":** *".((empty($value['nullable'])) ? $value['type'] : '?'.$value['type'])."*   
-".((isset($value['text']))?$value['text']:"")."    
+##### **".$value->getName().":** *".getTypeAsString($value->getType())."*   
+".((isset($entry['input'][$value->getName()]['text'])) ? $entry['input'][$value->getName()]['text'] : "")."    
 ";
     endforeach;
 endif;
@@ -248,31 +249,31 @@ endif;
 function makeRepresentation (array $entry, bool $link = false) : string
 {
     if (!$link) :
-        return computeRepresentationAsPHP($entry['static'], $entry['visibility'], $entry['class'],$entry['name'],(isset($entry['input'])) ? $entry['input'] : null, (isset($entry['return_type'])) ? $entry['return_type'] : null);
+        return computeRepresentationAsPHP($entry['static'], $entry['visibility'], $entry['class'],$entry['name'],$entry['ReflectionMethod']->getParameters(), (isset($entry['return_type'])) ? $entry['return_type'] : null);
     else :
-        return computeRepresentationAsForIndex($entry['static'], $entry['visibility'], $entry['class'],$entry['name'],(isset($entry['input'])) ? $entry['input'] : null, (isset($entry['return_type'])) ? $entry['return_type'] : null);
+        return computeRepresentationAsForIndex($entry['static'], $entry['visibility'], $entry['class'],$entry['name'],$entry['ReflectionMethod']->getParameters(), (isset($entry['return_type'])) ? $entry['return_type'] : null);
     endif;
 }
 
-function computeRepresentationAsPHP (bool $static, string $public, string $class, string $method, ?array $param, ?string $return_type) : string
+function computeRepresentationAsPHP (bool $static, string $public, string $class, string $method, array $param, ?string $return_type) : string
 {
 
     $option = false;
     $str = '(';
     $i = 0;
 
-if (is_array($param)) :
-    foreach ($param as $key => $value) :
-        $str .= " ";
-        $str .= ($value['required'] === false && !$option) ? "[" : "";
-        $str .= ($i > 0) ? ", " : "";
-        $str .= (isset($value['nullable']) && $value['nullable'] && $value['type'] !== "mixed") ? "?" : "";
-        $str .= $value['type'];
-        $str .= " ";
-        $str .= $key;
-        $str .= (isset($value['default'])) ? " = ".speakBool($value['default']) : "";
 
-        ($value['required'] === false && !$option) ? $option = true : null;
+if (!empty($param)) :
+    foreach ($param as $value) :
+        $str .= " ";
+        $str .= ($value->isOptional() && !$option) ? "[" : "";
+        $str .= ($i > 0) ? ", " : "";
+        $str .= getTypeAsString($value->getType());
+        $str .= " ";
+        $str .= $value->getName();
+        $str .= ($value->isDefaultValueAvailable()) ? " = ".speakBool($value->getDefaultValue()) : "";
+
+        ($value->isOptional() && !$option) ? $option = true : null;
         $i++;
     endforeach;
 endif;
@@ -288,7 +289,7 @@ endif;
 ```";
 }
 
-function computeRepresentationAsForIndex (bool $static, string $public, string $class, string $method, ?array $param, ?string $return_type) : string
+function computeRepresentationAsForIndex (bool $static, string $public, string $class, string $method, array $param, ?string $return_type) : string
 {
     return  $public." ".
             (($static)?"static ":'').
@@ -328,45 +329,12 @@ function checkEntry(array $entry) : void
             next($im);
         endforeach;
     endif;
-
-    // Check Type && Default Value
-    if ($iec > 0) :
-        $i = 0;
-        foreach ($entry['input'] as $iName => $iParam) :
-            $rfParam = $parameters[$i];
-            $rfType = getReturnTypeAsString($rfParam->getType());
-            $docType = ($iParam['nullable'] ?? false) ? '?'.$iParam['type'] : $iParam['type'];
-            $docDefaultValue = !isset($iParam['default']) ? null : speakBool($iParam['default']);
-            $rfDefaultValue = (!$rfParam->isDefaultValueAvailable()) ? null : speakBool($rfParam->getDefaultValue());
-
-            // Check Type
-            if ($rfType !== $docType && !(substr_count($iParam['type'],'mixed') === 1 && $rfType === null)) :
-                print 'Different input type: '.$entry['class']."::".$entry['name'].">$".$iName." => Doc: ".$docType." / Reflection: ".$rfType."\n";
-            endif;
-
-            // Check default Value
-            if ($rfDefaultValue !== $docDefaultValue) :
-                print 'Different param default value: '.$entry['class']."::".$entry['name'].">$".$iName." => Doc: ".$docDefaultValue." / Reflection: ".$rfDefaultValue."\n";
-            endif;
-            $i++;
-        endforeach;
-    endif;
-
-
-    // Check return type
-    $reflection_return_type = getReturnTypeAsString($entry['ReflectionMethod']->getReturnType());
-
-    $doc_return_type = $entry['return_type'] ?? null;
-
-    if ($doc_return_type !== $reflection_return_type && !($reflection_return_type === null && $doc_return_type === '?mixed')) :
-        print 'Different return type: '.$entry['class']."::".$entry['name']." => Doc: ".$doc_return_type." / Reflection: ".$reflection_return_type."\n";
-    endif;
 }
 
-function getReturnTypeAsString (?\ReflectionType $rf_rt) : ?string
+function getTypeAsString (?\ReflectionType $rf_rt) : ?string
 {
     if ( $rf_rt !== null ) :
-        $rf_rt = (string) $rf_rt;
+        return (string) $rf_rt;
     endif;
 
     return $rf_rt;
@@ -397,7 +365,7 @@ function makeIndex (array $index, string $file_content ) : string
             $file_content .= "* [".makeRepresentation($oneMethod, true)."](".$url.")";
 
             if (isset($oneMethod['ReflectionMethod']) && $oneMethod['ReflectionMethod']->hasReturnType()) :
-                $file_content .= ' : '.getReturnTypeAsString($oneMethod['ReflectionMethod']->getReturnType());
+                $file_content .= ' : '.getTypeAsString($oneMethod['ReflectionMethod']->getReturnType());
             endif;
 
 
@@ -461,7 +429,7 @@ function makeProfundis (array $index, string $file_content) : string
                 $parameters_string .= (++$i > 1) ? ', ' : '';
 
                 if ($oneP->getType() !== null) :
-                    $parameters_string .= getReturnTypeAsString($oneP->getType()) . ' ';
+                    $parameters_string .= getTypeAsString($oneP->getType()) . ' ';
                 endif;
                 $parameters_string .= '$'.$oneP->name;
 
@@ -478,7 +446,7 @@ function makeProfundis (array $index, string $file_content) : string
             $representation .=  $oneMethod['name'] . ' ('.$parameters_string.')';
 
             if ($oneMethod['ReflectionMethod']->hasReturnType()) :
-                $representation .= ' : '.getReturnTypeAsString($oneMethod['ReflectionMethod']->getReturnType());
+                $representation .= ' : '.getTypeAsString($oneMethod['ReflectionMethod']->getReturnType());
             endif;
 
             $file_content .= "* ".$representation."  \n";
