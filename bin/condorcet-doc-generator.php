@@ -130,10 +130,10 @@ echo 'YAH ! <br>' . (microtime(true) - $start_time) .'s';
 
 function makeFilename (array $method) : string
 {
-  return  $method['visibility'].
-          (($method['static']) ? " static " : " "). 
-          str_replace("\\", "_", $method['class'])."--".$method['name'].
-          ".md";
+    return  getVisibility($method['ReflectionMethod']).
+            ($method['ReflectionMethod']->isStatic() ? " static " : " ").
+            str_replace("\\", "_", $method['class'])."--".$method['name'].
+            ".md";
 }
 
 function speakBool ($c) : string
@@ -162,11 +162,11 @@ function cleverRelated (string $name) : string
 function createMarkdownContent (array $entry) : string
 {
     // Header
-
+    
     $md =
 "## ".
-$entry['visibility'].
-(($entry['static']) ? " static " : " "). 
+getVisibility($entry['ReflectionMethod']).
+($entry['ReflectionMethod']->isStatic() ? " static " : " "). 
 $entry['class']."::".$entry['name'].     "
 
 ### Description    
@@ -246,12 +246,25 @@ endif;
 
 }
 
+function getVisibility (ReflectionMethod $rf) : string
+{
+    if ($rf->isPublic()) :
+        return 'public';
+    elseif ($rf->isProtected()) :
+        return 'protected';
+    elseif ($rf->isPrivate()) :
+        return 'private';
+    else :
+        return '??';
+    endif;
+}
+
 function makeRepresentation (array $entry, bool $link = false) : string
 {
     if (!$link) :
-        return computeRepresentationAsPHP($entry['static'], $entry['visibility'], $entry['class'],$entry['name'],$entry['ReflectionMethod']->getParameters(), (isset($entry['return_type'])) ? $entry['return_type'] : null);
+        return computeRepresentationAsPHP($entry['ReflectionMethod']->isStatic(), getVisibility($entry['ReflectionMethod']), $entry['class'],$entry['name'],$entry['ReflectionMethod']->getParameters(), (isset($entry['return_type'])) ? $entry['return_type'] : null);
     else :
-        return computeRepresentationAsForIndex($entry['static'], $entry['visibility'], $entry['class'],$entry['name'],$entry['ReflectionMethod']->getParameters(), (isset($entry['return_type'])) ? $entry['return_type'] : null);
+        return computeRepresentationAsForIndex($entry['ReflectionMethod']->isStatic(), getVisibility($entry['ReflectionMethod']), $entry['class'],$entry['name'],$entry['ReflectionMethod']->getParameters(), (isset($entry['return_type'])) ? $entry['return_type'] : null);
     endif;
 }
 
@@ -346,9 +359,9 @@ function makeIndex (array $index, string $file_content ) : string
     foreach ($index as $class => $methods) :
 
         usort($methods,function (array $a, array $b) {
-            if ($a['static'] === $b['static']) :
+            if ($a['ReflectionMethod']->isStatic() === $b['ReflectionMethod']->isStatic()) :
                 return strnatcmp($a['name'],$b['name']);
-            elseif ($a['static'] && !$b['static']) :
+            elseif ($a['ReflectionMethod']->isStatic() && !$b['ReflectionMethod']->isStatic()) :
                 return -1;
             else :
                 return 1;
@@ -359,7 +372,7 @@ function makeIndex (array $index, string $file_content ) : string
         $file_content .= '### CondorcetPHP\Condorcet\\'.$class." Class  \n\n";
 
         foreach ($methods as $oneMethod) :
-            $url = str_replace("\\","_",$oneMethod['class']).' Class/'.$oneMethod['visibility'].' '.(($oneMethod['static'])?'static ':'') . str_replace("\\","_",$oneMethod['class']."--". $oneMethod['name']) . '.md' ;
+            $url = str_replace("\\","_",$oneMethod['class']).' Class/'.getVisibility($oneMethod['ReflectionMethod']).' '.(($oneMethod['ReflectionMethod']->isStatic())?'static ':'') . str_replace("\\","_",$oneMethod['class']."--". $oneMethod['name']) . '.md' ;
             $url = str_replace(' ', '%20', $url);
 
             $file_content .= "* [".makeRepresentation($oneMethod, true)."](".$url.")";
