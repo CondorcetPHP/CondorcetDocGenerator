@@ -30,9 +30,6 @@ $FullClassList = ClassFinder::getClassesInNamespace('CondorcetPHP\Condorcet\\', 
 $FullClassList = \array_filter($FullClassList,function (string $value) { return (strpos($value, 'Condorcet\Test') === FALSE); });
 
 foreach ($doc as &$entry) :
-  if (isset($entry['publish']) && $entry['publish'] !== true) :
-    continue;
-  endif;
 
   if (!is_array($entry['class'])) :
     $entry['class'] = [$entry['class']];
