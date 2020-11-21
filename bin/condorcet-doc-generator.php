@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-use CondorcetPHP\Condorcet\CondorcetDocAttributes\{CondorcetDoc_PublishAsPublicAPI};
+use CondorcetPHP\Condorcet\CondorcetDocAttributes\{PublicAPI};
 use HaydenPierce\ClassFinder\ClassFinder;
 use Symfony\Component\Yaml\Yaml;
 
@@ -73,13 +73,13 @@ foreach ($FullClassList as $FullClass) :
         if ( !isset($index[$shortClass][$oneMethod->name]) && !$oneMethod->isInternal()) :
             $non_inDoc++;
 
-            if (!empty($oneMethod->getAttributes()) && $oneMethod->getName() !== 'getObjectVersion') :
+            if (!empty($oneMethod->getAttributes(PublicAPI::class)) && $oneMethod->getName() !== 'getObjectVersion') :
                 var_dump('Method Has Public API attribute, but not in doc.yaml file: '.$oneMethod->getDeclaringClass()->getName().'->'.$oneMethod->getName());
             endif;
         else :
             $inDoc++;
 
-            if (empty($oneMethod->getAttributes()) && $oneMethod->getDeclaringClass()->getNamespaceName() !== "") :
+            if (empty($oneMethod->getAttributes(PublicAPI::class)) && $oneMethod->getDeclaringClass()->getNamespaceName() !== "") :
                 var_dump('Method not has API attribute, but is in doc.yaml file: '.$oneMethod->getDeclaringClass()->getName().'->'.$oneMethod->getName());
             endif;
         endif;
