@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-use CondorcetPHP\Condorcet\CondorcetDocAttributes\{PublicAPI};
+use CondorcetPHP\Condorcet\CondorcetDocAttributes\{Description, Examples, FunctionReturn, PublicAPI, Related};
 use HaydenPierce\ClassFinder\ClassFinder;
 use Symfony\Component\Yaml\Yaml;
 
@@ -73,11 +73,16 @@ foreach ($FullClassList as $FullClass) :
             if (!empty($oneMethod->getAttributes(PublicAPI::class)) && $oneMethod->getName() !== 'getObjectVersion') :
                 var_dump('Method Has Public API attribute, but not in doc.yaml file: '.$oneMethod->getDeclaringClass()->getName().'->'.$oneMethod->getName());
             endif;
+
         else :
             $inDoc++;
 
             if (empty($oneMethod->getAttributes(PublicAPI::class)) && $oneMethod->getDeclaringClass()->getNamespaceName() !== "") :
                 var_dump('Method not has API attribute, but is in doc.yaml file: '.$oneMethod->getDeclaringClass()->getName().'->'.$oneMethod->getName());
+            endif;
+
+            if ( empty($oneMethod->getAttributes(Description::class)) && $oneMethod->getDeclaringClass()->getNamespaceName() !== "") :
+                var_dump('Description Attribute is empty: '.$oneMethod->getDeclaringClass()->getName().'->'.$oneMethod->getName());
             endif;
         endif;
     endforeach;
@@ -179,7 +184,7 @@ $entry['class']."::".$entry['name'].     "
 
 ".makeRepresentation($entry)."
 
-".$entry['description']."    ";
+".$entry['ReflectionMethod']->getAttributes(Description::class)[0]->getArguments()[0]."\n    ";
 
     // Input
 
@@ -198,20 +203,19 @@ endif;
     
     // Return Value
 
-if (isset($entry['return'])) :
+if (!empty($entry['ReflectionMethod']->getAttributes(FunctionReturn::class))) :
 
 
     $md .= "
 
 ### Return value:   
 
-*(".$entry['return_type'].")* ".$entry['return']."
-";
+*(".$entry['return_type'].")* ".$entry['ReflectionMethod']->getAttributes(FunctionReturn::class)[0]->getArguments()[0]."\n\n";
 endif;
 
     // Related methods
 
-    if(!empty($entry['related'])) :
+    if(!empty($entry['ReflectionMethod']->getAttributes(Related::class))) :
 
         $md .=
 "
@@ -221,7 +225,7 @@ endif;
 
 ";
 
-        foreach ($entry['related'] as $value) :
+        foreach ($entry['ReflectionMethod']->getAttributes(Related::class)[0]->getArguments() as $value) :
 
             if ($value === $entry['class'].'::'.$entry['name']) : continue; endif;
 
@@ -231,7 +235,7 @@ endif;
 
     endif;
 
-    if(!empty($entry['examples'])) :
+    if(!empty($entry['ReflectionMethod']->getAttributes(Examples::class))) :
 
         $md .=
 "
@@ -241,8 +245,10 @@ endif;
 
 ";
 
-        foreach ($entry['examples'] as $key => $value) :
-            $md .= "* **[".$key."](".$value.")**    
+        foreach ($entry['ReflectionMethod']->getAttributes(Examples::class)[0]->getArguments() as $value) :
+            $value = explode('||',$value);
+            
+            $md .= "* **[".$value[0]."](".$value[1].")**    
 ";
         endforeach;
 
