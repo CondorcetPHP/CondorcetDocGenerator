@@ -36,26 +36,17 @@ foreach ($doc as &$entry) :
   endif;
 
   foreach ($entry['class'] as $class) :
-    $method = $entry ;
-    $method['class'] = $class;
-    if(!method_exists('CondorcetPHP\Condorcet\\'.$method['class'], $method['name'])) :
-        print "The method does not exist >> ".$method['class']." >> ".$method['name']."\n";
+    $oneEntry = $entry ;
+    $oneEntry['class'] = $class;
+    if(!method_exists('CondorcetPHP\Condorcet\\'.$oneEntry['class'], $oneEntry['name'])) :
+        print "The method does not exist >> ".$oneEntry['class']." >> ".$oneEntry['name']."\n";
     else :
-        $method['ReflectionMethod'] = new ReflectionMethod ('CondorcetPHP\Condorcet\\'.$method['class'],$method['name']);
+        $oneEntry['ReflectionMethod'] = new ReflectionMethod ('CondorcetPHP\Condorcet\\'.$oneEntry['class'],$oneEntry['name']);
 
-        checkEntry($method);
-    endif;
-    $method['return_type'] = getTypeAsString($method['ReflectionMethod']->getReturnType());
-
-    $path = $pathDirectory . str_replace("\\", "_", $method['class']) . " Class/";
-
-    if (!is_dir($path)) :
-        mkdir($path);
+        checkEntry($oneEntry);
     endif;
 
-    file_put_contents($path.makeFilename($method), createMarkdownContent($method));
-
-    $index[$method['class']][$method['name']] = $method;
+    $index[$oneEntry['class']][$oneEntry['name']] = $oneEntry;
   endforeach;
 endforeach;
 
@@ -64,7 +55,7 @@ $non_inDoc = 0;
 
 foreach ($FullClassList as $FullClass) :
     $methods = (new ReflectionClass($FullClass))->getMethods(ReflectionMethod::IS_PUBLIC);
-    $shortClass = str_replace('CondorcetPHP\Condorcet\\', '', $FullClass);
+    $shortClass = simpleClass($FullClass);
 
     foreach ($methods as $oneMethod) :
         if ( !isset($index[$shortClass][$oneMethod->name]) && !$oneMethod->isInternal()) :
@@ -77,6 +68,8 @@ foreach ($FullClassList as $FullClass) :
         else :
             $inDoc++;
 
+            if ($oneMethod->getDeclaringClass()->getNamespaceName() !== "") :
+
             if (empty($oneMethod->getAttributes(PublicAPI::class)) && $oneMethod->getDeclaringClass()->getNamespaceName() !== "") :
                 var_dump('Method not has API attribute, but is in doc.yaml file: '.$oneMethod->getDeclaringClass()->getName().'->'.$oneMethod->getName());
             endif;
@@ -84,6 +77,18 @@ foreach ($FullClassList as $FullClass) :
             if ( empty($oneMethod->getAttributes(Description::class)) && $oneMethod->getDeclaringClass()->getNamespaceName() !== "") :
                 var_dump('Description Attribute is empty: '.$oneMethod->getDeclaringClass()->getName().'->'.$oneMethod->getName());
             endif;
+
+            // Write Markdown
+            if (!empty($oneMethod->getAttributes(PublicAPI::class))) :
+                $path = $pathDirectory . str_replace("\\", "_", simpleClass($oneMethod->class)) . " Class/";
+
+                if (!is_dir($path)) :
+                    mkdir($path);
+                endif;
+
+                file_put_contents($path.makeFilename($oneMethod), createMarkdownContent($oneMethod, $index[$shortClass][$oneMethod->name]));
+            endif;
+        endif;
         endif;
     endforeach;
 endforeach;
@@ -139,12 +144,17 @@ file_put_contents($pathDirectory."\\README.md", $file_content);
 
 echo 'YAH ! <br>' . (microtime(true) - $start_time) .'s';
 
-function makeFilename (array $method) : string
+function makeFilename (\ReflectionMethod $method) : string
 {
-    return  getVisibility($method['ReflectionMethod']).
-            ($method['ReflectionMethod']->isStatic() ? " static " : " ").
-            str_replace("\\", "_", $method['class'])."--".$method['name'].
+    return  getVisibility($method).
+            ($method->isStatic() ? " static " : " ").
+            str_replace("\\", "_", simpleClass($method->class))."--".$method->name.
             ".md";
+}
+
+function simpleClass (string $fullClassName) : string
+{
+    return str_replace('CondorcetPHP\\Condorcet\\','',$fullClassName);
 }
 
 function speakBool ($c) : string
@@ -170,27 +180,27 @@ function cleverRelated (string $name) : string
 }
 
 
-function createMarkdownContent (array $entry) : string
+function createMarkdownContent (\ReflectionMethod $method, array $entry) : string
 {
     // Header
     
     $md =
 "## ".
-getVisibility($entry['ReflectionMethod']).
-($entry['ReflectionMethod']->isStatic() ? " static " : " "). 
-$entry['class']."::".$entry['name'].     "
+getVisibility($method).
+($method->isStatic() ? " static " : " "). 
+simpleClass($method->class)."::".$method->name.     "
 
 ### Description    
 
-".makeRepresentation($entry)."
+".makeRepresentation($method)."
 
-".$entry['ReflectionMethod']->getAttributes(Description::class)[0]->getArguments()[0]."\n    ";
+".$method->getAttributes(Description::class)[0]->getArguments()[0]."\n    ";
+
 
     // Input
 
-
-if (!empty($entry['ReflectionMethod']->getParameters())) :
-    foreach ($entry['ReflectionMethod']->getParameters() as $key => $value ) :
+if ($method->getNumberOfParameters() > 0) :
+    foreach ($method->getParameters() as $key => $value ) :
 
 $md .= "
 
@@ -203,19 +213,19 @@ endif;
     
     // Return Value
 
-if (!empty($entry['ReflectionMethod']->getAttributes(FunctionReturn::class))) :
+if (!empty($method->getAttributes(FunctionReturn::class))) :
 
 
     $md .= "
 
 ### Return value:   
 
-*(".$entry['return_type'].")* ".$entry['ReflectionMethod']->getAttributes(FunctionReturn::class)[0]->getArguments()[0]."\n\n";
+*(".getTypeAsString($method->getReturnType()).")* ".$method->getAttributes(FunctionReturn::class)[0]->getArguments()[0]."\n\n";
 endif;
 
     // Related methods
 
-    if(!empty($entry['ReflectionMethod']->getAttributes(Related::class))) :
+    if(!empty($method->getAttributes(Related::class))) :
 
         $md .=
 "
@@ -225,9 +235,9 @@ endif;
 
 ";
 
-        foreach ($entry['ReflectionMethod']->getAttributes(Related::class)[0]->getArguments() as $value) :
+        foreach ($method->getAttributes(Related::class)[0]->getArguments() as $value) :
 
-            if ($value === $entry['class'].'::'.$entry['name']) : continue; endif;
+            if ($value === simpleClass($method->class).'::'.$method->name) : continue; endif;
 
             $md .= "* ".cleverRelated($value)."    
 ";
@@ -235,7 +245,7 @@ endif;
 
     endif;
 
-    if(!empty($entry['ReflectionMethod']->getAttributes(Examples::class))) :
+    if(!empty($method->getAttributes(Examples::class))) :
 
         $md .=
 "
@@ -245,7 +255,7 @@ endif;
 
 ";
 
-        foreach ($entry['ReflectionMethod']->getAttributes(Examples::class)[0]->getArguments() as $value) :
+        foreach ($method->getAttributes(Examples::class)[0]->getArguments() as $value) :
             $value = explode('||',$value);
             
             $md .= "* **[".$value[0]."](".$value[1].")**    
@@ -271,16 +281,16 @@ function getVisibility (ReflectionMethod $rf) : string
     endif;
 }
 
-function makeRepresentation (array $entry, bool $link = false) : string
+function makeRepresentation (\ReflectionMethod $method, bool $link = false) : string
 {
     if (!$link) :
-        return computeRepresentationAsPHP($entry['ReflectionMethod']->isStatic(), getVisibility($entry['ReflectionMethod']), $entry['class'],$entry['name'],$entry['ReflectionMethod']->getParameters(), (isset($entry['return_type'])) ? $entry['return_type'] : null);
+        return computeRepresentationAsPHP($method);
     else :
-        return computeRepresentationAsForIndex($entry['ReflectionMethod']->isStatic(), getVisibility($entry['ReflectionMethod']), $entry['class'],$entry['name'],$entry['ReflectionMethod']->getParameters(), (isset($entry['return_type'])) ? $entry['return_type'] : null);
+        return computeRepresentationAsForIndex($method);
     endif;
 }
 
-function computeRepresentationAsPHP (bool $static, string $public, string $class, string $method, array $param, ?string $return_type) : string
+function computeRepresentationAsPHP (\ReflectionMethod $method) : string
 {
 
     $option = false;
@@ -288,20 +298,20 @@ function computeRepresentationAsPHP (bool $static, string $public, string $class
     $i = 0;
 
 
-if (!empty($param)) :
-    foreach ($param as $value) :
-        $str .= " ";
-        $str .= ($value->isOptional() && !$option) ? "[" : "";
-        $str .= ($i > 0) ? ", " : "";
-        $str .= getTypeAsString($value->getType());
-        $str .= " ";
-        $str .= $value->getName();
-        $str .= ($value->isDefaultValueAvailable()) ? " = ".speakBool($value->getDefaultValue()) : "";
+    if ($method->getNumberOfParameters() > 0) :
+        foreach ($method->getParameters() as $value) :
+            $str .= " ";
+            $str .= ($value->isOptional() && !$option) ? "[" : "";
+            $str .= ($i > 0) ? ", " : "";
+            $str .= getTypeAsString($value->getType());
+            $str .= " ";
+            $str .= $value->getName();
+            $str .= ($value->isDefaultValueAvailable()) ? " = ".speakBool($value->getDefaultValue()) : "";
 
-        ($value->isOptional() && !$option) ? $option = true : null;
-        $i++;
-    endforeach;
-endif;
+            ($value->isOptional() && !$option) ? $option = true : null;
+            $i++;
+        endforeach;
+    endif;
 
     if ($option) :
         $str .= "]";
@@ -310,18 +320,23 @@ endif;
     $str .= " )";
 
     return "```php
-".$public." ".(($static)?"static ":'$').$class.(($static)?"::":' -> ').$method." ".$str. ( ($return_type !== null) ? " : ".$return_type : "" )."
+".getModifiersName($method).' '.(($method->isStatic())?"":'$').simpleClass($method->class).(($method->isStatic())?"::":' -> ').$method->name." ".$str. ( (getTypeAsString($method->getReturnType()) !== null) ? " : ".getTypeAsString($method->getReturnType()) : "" )."
 ```";
 }
 
-function computeRepresentationAsForIndex (bool $static, string $public, string $class, string $method, array $param, ?string $return_type) : string
+function getModifiersName (\ReflectionMethod $method) : string
 {
-    return  $public." ".
-            (($static)?"static ":'').
-            $class.
-            (($static)?"::":'->').
-            $method.
-            " (".(empty($param) ? '' : '...').")";
+    return implode(' ', Reflection::getModifierNames($method->getModifiers()));
+}
+
+function computeRepresentationAsForIndex (\ReflectionMethod $method) : string
+{
+    return  getModifiersName($method).
+            " ".
+            simpleClass($method->class).
+            (($method->isStatic())?"::":'->').
+            $method->name.
+            " (".( ($method->getNumberOfParameters() > 0) ? '...' : '').")";
 }
 
 function checkEntry(array $entry) : void
@@ -384,10 +399,10 @@ function makeIndex (array $index, string $file_content ) : string
         $file_content .= '### CondorcetPHP\Condorcet\\'.$class." Class  \n\n";
 
         foreach ($methods as $oneMethod) :
-            $url = str_replace("\\","_",$oneMethod['class']).' Class/'.getVisibility($oneMethod['ReflectionMethod']).' '.(($oneMethod['ReflectionMethod']->isStatic())?'static ':'') . str_replace("\\","_",$oneMethod['class']."--". $oneMethod['name']) . '.md' ;
+            $url = str_replace("\\","_",simpleClass($oneMethod['ReflectionMethod']->class)).' Class/'.getVisibility($oneMethod['ReflectionMethod']).' '.(($oneMethod['ReflectionMethod']->isStatic())?'static ':'') . str_replace("\\","_",simpleClass($oneMethod['ReflectionMethod']->class)."--". $oneMethod['ReflectionMethod']->name) . '.md' ;
             $url = str_replace(' ', '%20', $url);
 
-            $file_content .= "* [".makeRepresentation($oneMethod, true)."](".$url.")";
+            $file_content .= "* [".makeRepresentation($oneMethod['ReflectionMethod'], true)."](".$url.")";
 
             if (isset($oneMethod['ReflectionMethod']) && $oneMethod['ReflectionMethod']->hasReturnType()) :
                 $file_content .= ' : '.getTypeAsString($oneMethod['ReflectionMethod']->getReturnType());
