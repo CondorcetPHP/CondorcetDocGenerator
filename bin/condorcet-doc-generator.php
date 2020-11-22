@@ -38,6 +38,8 @@ foreach ($doc as &$entry) :
   foreach ($entry['class'] as $class) :
     $oneEntry = $entry ;
     $oneEntry['class'] = $class;
+    $oneEntry['inDoc'] = true;
+
     if(!method_exists('CondorcetPHP\Condorcet\\'.$oneEntry['class'], $oneEntry['name'])) :
         print "The method does not exist >> ".$oneEntry['class']." >> ".$oneEntry['name']."\n";
     else :
@@ -61,14 +63,17 @@ foreach ($FullClassList as $FullClass) :
         if ( !isset($index[$shortClass][$oneMethod->name]) && !$oneMethod->isInternal()) :
             $non_inDoc++;
 
-            if (!empty($oneMethod->getAttributes(PublicAPI::class)) && $oneMethod->getName() !== 'getObjectVersion') :
-                var_dump('Method Has Public API attribute, but not in doc.yaml file: '.$oneMethod->getDeclaringClass()->getName().'->'.$oneMethod->getName());
+            if (!empty($oneMethod->getAttributes(PublicAPI::class)) && $oneMethod->getNumberOfParameters() > 0 &&  $oneMethod->getName() !== 'getObjectVersion') :
+                var_dump('Method Has Public API attribute and parameters, but not in doc.yaml file: '.$oneMethod->getDeclaringClass()->getName().'->'.$oneMethod->getName());
             endif;
+
+            $index[$shortClass][$oneMethod->name]['inDoc'] = false;
+            $index[$shortClass][$oneMethod->name]['ReflectionMethod'] = $oneMethod;
+            $index[$shortClass][$oneMethod->name]['class'][] = $shortClass;
 
         else :
             $inDoc++;
 
-            if ($oneMethod->getDeclaringClass()->getNamespaceName() !== "") :
 
             if (empty($oneMethod->getAttributes(PublicAPI::class)) && $oneMethod->getDeclaringClass()->getNamespaceName() !== "") :
                 var_dump('Method not has API attribute, but is in doc.yaml file: '.$oneMethod->getDeclaringClass()->getName().'->'.$oneMethod->getName());
@@ -77,18 +82,17 @@ foreach ($FullClassList as $FullClass) :
             if ( empty($oneMethod->getAttributes(Description::class)) && $oneMethod->getDeclaringClass()->getNamespaceName() !== "") :
                 var_dump('Description Attribute is empty: '.$oneMethod->getDeclaringClass()->getName().'->'.$oneMethod->getName());
             endif;
-
-            // Write Markdown
-            if (!empty($oneMethod->getAttributes(PublicAPI::class))) :
-                $path = $pathDirectory . str_replace("\\", "_", simpleClass($oneMethod->class)) . " Class/";
-
-                if (!is_dir($path)) :
-                    mkdir($path);
-                endif;
-
-                file_put_contents($path.makeFilename($oneMethod), createMarkdownContent($oneMethod, $index[$shortClass][$oneMethod->name]));
-            endif;
         endif;
+
+        // Write Markdown
+        if (!empty($apiAttribute = $oneMethod->getAttributes(PublicAPI::class)) && (empty($apiAttribute[0]->getArguments()) || in_array(simpleClass($oneMethod->class),$apiAttribute[0]->getArguments(), true)) ) :
+            $path = $pathDirectory . str_replace("\\", "_", simpleClass($oneMethod->class)) . " Class/";
+
+            if (!is_dir($path)) :
+                mkdir($path);
+            endif;
+
+            file_put_contents($path.makeFilename($oneMethod), createMarkdownContent($oneMethod, $index[$shortClass][$oneMethod->name] ?? null));
         endif;
     endforeach;
 endforeach;
@@ -146,8 +150,8 @@ echo 'YAH ! <br>' . (microtime(true) - $start_time) .'s';
 
 function makeFilename (\ReflectionMethod $method) : string
 {
-    return  getVisibility($method).
-            ($method->isStatic() ? " static " : " ").
+    return  getModifiersName($method).
+            " ".
             str_replace("\\", "_", simpleClass($method->class))."--".$method->name.
             ".md";
 }
@@ -180,7 +184,7 @@ function cleverRelated (string $name) : string
 }
 
 
-function createMarkdownContent (\ReflectionMethod $method, array $entry) : string
+function createMarkdownContent (\ReflectionMethod $method, ?array $entry) : string
 {
     // Header
     
@@ -387,7 +391,7 @@ function makeIndex (array $index, string $file_content ) : string
 
         usort($methods,function (array $a, array $b) {
             if ($a['ReflectionMethod']->isStatic() === $b['ReflectionMethod']->isStatic()) :
-                return strnatcmp($a['name'],$b['name']);
+                return strnatcmp($a['ReflectionMethod']->name,$b['ReflectionMethod']->name);
             elseif ($a['ReflectionMethod']->isStatic() && !$b['ReflectionMethod']->isStatic()) :
                 return -1;
             else :
@@ -395,21 +399,29 @@ function makeIndex (array $index, string $file_content ) : string
             endif;
         });
 
-        $file_content .= "\n";
-        $file_content .= '### CondorcetPHP\Condorcet\\'.$class." Class  \n\n";
-
+        $i = 0;
         foreach ($methods as $oneMethod) :
-            $url = str_replace("\\","_",simpleClass($oneMethod['ReflectionMethod']->class)).' Class/'.getVisibility($oneMethod['ReflectionMethod']).' '.(($oneMethod['ReflectionMethod']->isStatic())?'static ':'') . str_replace("\\","_",simpleClass($oneMethod['ReflectionMethod']->class)."--". $oneMethod['ReflectionMethod']->name) . '.md' ;
-            $url = str_replace(' ', '%20', $url);
+            if (empty($apiAttribute = $oneMethod['ReflectionMethod']->getAttributes(PublicAPI::class)) || (!empty($apiAttribute[0]->getArguments()) && !in_array(simpleClass($oneMethod['ReflectionMethod']->class),$apiAttribute[0]->getArguments(), true))) :
+                continue;
+            else :
+                if (++$i === 1) :
+                    $file_content .= "\n";
+                    $file_content .= '### CondorcetPHP\Condorcet\\'.$class." Class  \n\n";
+                endif;
 
-            $file_content .= "* [".makeRepresentation($oneMethod['ReflectionMethod'], true)."](".$url.")";
 
-            if (isset($oneMethod['ReflectionMethod']) && $oneMethod['ReflectionMethod']->hasReturnType()) :
-                $file_content .= ' : '.getTypeAsString($oneMethod['ReflectionMethod']->getReturnType());
+                $url = str_replace("\\","_",simpleClass($oneMethod['ReflectionMethod']->class)).' Class/'.getVisibility($oneMethod['ReflectionMethod']).' '.(($oneMethod['ReflectionMethod']->isStatic())?'static ':'') . str_replace("\\","_",simpleClass($oneMethod['ReflectionMethod']->class)."--". $oneMethod['ReflectionMethod']->name) . '.md' ;
+                $url = str_replace(' ', '%20', $url);
+
+                $file_content .= "* [".makeRepresentation($oneMethod['ReflectionMethod'], true)."](".$url.")";
+
+                if (isset($oneMethod['ReflectionMethod']) && $oneMethod['ReflectionMethod']->hasReturnType()) :
+                    $file_content .= ' : '.getTypeAsString($oneMethod['ReflectionMethod']->getReturnType());
+                endif;
+
+
+                $file_content .= "  \n";
             endif;
-
-
-            $file_content .= "  \n";
         endforeach;
 
     endforeach;
