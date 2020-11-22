@@ -63,7 +63,7 @@ foreach ($FullClassList as $FullClass) :
         if ( !isset($index[$shortClass][$oneMethod->name]) && !$oneMethod->isInternal()) :
             $non_inDoc++;
 
-            if (!empty($oneMethod->getAttributes(PublicAPI::class)) && $oneMethod->getNumberOfParameters() > 0 &&  $oneMethod->getName() !== 'getObjectVersion') :
+            if (!empty($apiAttribute = $oneMethod->getAttributes(PublicAPI::class)) && $oneMethod->getNumberOfParameters() > 0 && (empty($apiAttribute[0]->getArguments()) || in_array(simpleClass($oneMethod->class),$apiAttribute[0]->getArguments(), true))) :
                 var_dump('Method Has Public API attribute and parameters, but not in doc.yaml file: '.$oneMethod->getDeclaringClass()->getName().'->'.$oneMethod->getName());
             endif;
 
