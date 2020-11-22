@@ -348,31 +348,6 @@ function checkEntry(array $entry) : void
     $parameters = $entry['ReflectionMethod']->getParameters();
 
     $iec = isset($entry['input']) ? count($entry['input']) : 0;
-
-    // Check different number of parameters
-    if (count($parameters) !== $iec) :
-        print 'Differents parameters count: '.$entry['class']."::".$entry['name']."\n";
-    endif;
-
-    // Check different name for parameters doc. vs technical
-    foreach ($parameters as $p) :
-        if (!in_array($p->name, array_keys($entry['input']), true)):
-            print 'Input not in Reflection: '.$entry['class']."::".$entry['name']." => ".$p->name."  docInput:{".implode(',', array_keys($entry['input']))."}\n";
-        endif;
-    endforeach;
-
-    // Check Parameters Orders
-    if ($iec > 0) :
-        $im = array_keys($entry['input']);
-        reset($im);
-        foreach ($parameters as $ri => $p) :
-            if ($p->name !== current($im)):
-                print 'Parameters Orders Warning: '.$entry['class']."::".$entry['name']." => ".$ri.":".$p->name."  docInput:{".implode(',', array_keys($entry['input']))."}\n";
-            endif;
-
-            next($im);
-        endforeach;
-    endif;
 }
 
 function getTypeAsString (?\ReflectionType $rf_rt) : ?string
